@@ -1,0 +1,110 @@
+---
+title: "brcaProteo -- proteogenomics data archive for breast cancer"
+author: "Vincent J. Carey, stvjc at channing.harvard.edu"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+vignette: >
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteIndexEntry{}
+  %\VignetteEncoding{UTF-8}
+output:
+  BiocStyle::html_document:
+    highlight: pygments
+    number_sections: yes
+    theme: united
+    toc: yes
+bibliography: brcaProteo.bib
+---
+
+# Introduction
+
+@Mertins2016 unites information
+developed in the NCI CPTAC with TCGA data.  The brcaProteo package
+reviews approaches to interrogating this data with Bioconductor.
+
+# Multiassay experiment
+
+The MultiAssayExperiment instance `brProteoMAE` has two components
+that use DelayedArray assay representation.  The assay data can
+be retrieved using `assay` when the environment variable `CGC_BILLING` 
+is set
+to a valid Google Cloud Platform project id.  
+
+```{r getpack}
+library(brcaProteo)
+data(brProteoMAE)
+brProteoMAE
+```
+
+The proteomic results are available for a subset of the TCGA
+contributions.
+
+```{r lku}
+upsetSamples(brProteoMAE)
+```
+
+We can see that there are 76 samples contributing to three
+assays.
+
+# Intersection across assays
+
+We would like to line up samples and features that are
+common across assay types, in the simplest possible
+way.  We will relabel the rows of the RNA-seq data, which
+are given as Entrez identifiers.  The other two
+assays use gene symbols.
+
+We'll start out by isolating the
+relevant SummarizedExperiment and forcing an authentication, by
+querying for assay values.
+```{r lkint}
+library(restfulSE)
+rna = experiments(brProteoMAE)[["rnaseq"]]
+rna
+assay(rna[1:3,1:4])
+```
+
+Now we use the orgDb interface to obtain gene symbols.
+```{r lkorg}
+library(org.Hs.eg.db)
+id = mapIds(org.Hs.eg.db, keys=rownames(rna), 
+       column="SYMBOL", keytype="ENTREZID") 
+id[is.na(id)] = rownames(rna)[is.na(id)]
+rownames(rna) = id  # if no symbol, just retain entrez id
+```
+
+The proteomic data can have multiple feature values per gene;
+for this initial view we'll omit all but the first when there
+are multiplicities.
+```{r lkdup}
+rd = rowData(experiments(brProteoMAE)[["itraq"]])
+ok = which(!is.na(rd$geneName)&!duplicated(rd$geneName))
+ph = experiments(brProteoMAE)[["itraq"]][ok,]
+rownames(ph) = rowData(ph)$geneName
+```
+The MultiAssayExperiment with common samples and features
+is then produced as follows:
+```{r produceIntersection}
+slot(brProteoMAE, "ExperimentList")[["itraq"]] = ph
+slot(brProteoMAE, "ExperimentList")[["rnaseq"]] = rna
+brint = intersectColumns(intersectRows(brProteoMAE))
+brint
+```
+
+We'll materialize the assay components for RPPA and RNA-seq, taking
+logs of RNA-seq values:
+```{r getm}
+assay(experiments(brint)[["rnaseq"]]) = 
+   log(as.matrix(assay(experiments(brint)[["rnaseq"]]))+1)
+assay(experiments(brint)[["rppa"]]) = 
+   as.matrix(assay(experiments(brint)[["rppa"]]))
+```
+
+We extract a matrix for comparison of assay values over
+samples, focusing here on gene BCL2.
+
+```{r lkcomp}
+mt = sapply(experiments(brint["BCL2",]), assay) 
+pairs(mt)
+```
+
+# References
