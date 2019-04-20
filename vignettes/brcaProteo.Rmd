@@ -21,7 +21,7 @@ bibliography: brcaProteo.bib
 developed in the NCI CPTAC with TCGA data.  The brcaProteo package
 reviews approaches to interrogating this data with Bioconductor.
 
-# Multiassay experiment
+# Multiassay experiment and a sanity check
 
 The MultiAssayExperiment instance `brProteoMAE` has two components
 that use DelayedArray assay representation.  The assay data can
@@ -45,11 +45,15 @@ upsetSamples(brProteoMAE)
 We can see that there are 76 samples contributing to three
 assays.
 
-# Intersection across assays
+## Intersection of samples and features across assays
 
 We would like to line up samples and features that are
 common across assay types, in the simplest possible
-way.  We will relabel the rows of the RNA-seq data, which
+way.  
+
+### Harmonizing feature annotation
+
+We will relabel the rows of the RNA-seq data, which
 are given as Entrez identifiers.  The other two
 assays use gene symbols.
 
@@ -72,6 +76,8 @@ id[is.na(id)] = rownames(rna)[is.na(id)]
 rownames(rna) = id  # if no symbol, just retain entrez id
 ```
 
+### Reducing multiple instances of features
+
 The proteomic data can have multiple feature values per gene;
 for this initial view we'll omit all but the first when there
 are multiplicities.
@@ -81,23 +87,30 @@ ok = which(!is.na(rd$geneName)&!duplicated(rd$geneName))
 ph = experiments(brProteoMAE)[["itraq"]][ok,]
 rownames(ph) = rowData(ph)$geneName
 ```
+
+### Using intersect*
+
 The MultiAssayExperiment with common samples and features
 is then produced as follows:
 ```{r produceIntersection}
 slot(brProteoMAE, "ExperimentList")[["itraq"]] = ph
 slot(brProteoMAE, "ExperimentList")[["rnaseq"]] = rna
 brint = intersectColumns(intersectRows(brProteoMAE))
-brint
 ```
+
+### Retrieval from BigQuery
 
 We'll materialize the assay components for RPPA and RNA-seq, taking
 logs of RNA-seq values:
-```{r getm}
+```{r getm, cache=TRUE}
 assay(experiments(brint)[["rnaseq"]]) = 
    log(as.matrix(assay(experiments(brint)[["rnaseq"]]))+1)
 assay(experiments(brint)[["rppa"]]) = 
    as.matrix(assay(experiments(brint)[["rppa"]]))
+brint
 ```
+
+## Feature-specific correlation between assays
 
 We extract a matrix for comparison of assay values over
 samples, focusing here on gene BCL2.
@@ -106,5 +119,27 @@ samples, focusing here on gene BCL2.
 mt = sapply(experiments(brint["BCL2",]), assay) 
 pairs(mt)
 ```
+
+For all the selected, coincident features, 
+interassay correlation is computed as follows:
+```{r getcorrs}
+fixup = function(x) data.matrix(na.omit(data.frame(x)))
+corm = function(x) cor(fixup(sapply(experiments(brint[x,]), assay)))
+allc = sapply(rownames(brint)[[1]], corm)
+dim(allc)
+summary(allc[2,]) # itraq vs rppa
+summary(allc[3,]) # itraq vs rnaseq
+summary(allc[8,]) # rppa vs rnaseq
+```
+
+The distributions of correlations can be searched
+to find assays that are not highly concordant across samples.
+The pairs plot for BRCA2 is
+```{r lkc2}
+mt = sapply(experiments(brint["BRCA2",]), assay) 
+pairs(mt)
+```
+
+
 
 # References
