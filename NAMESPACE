@@ -2,4 +2,5 @@
 
 export(pgconsis)
 export(plot3)
+import(ggplot2)
 import(shiny)

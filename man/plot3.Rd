@@ -2,7 +2,7 @@
 % Please edit documentation in R/plot3.R
 \name{plot3}
 \alias{plot3}
-\title{a simple interactive display for iTRAQ vs RPPA vs RNA-seq}
+\title{a simple ggplot2 display for iTRAQ vs RPPA vs RNA-seq in brcaProteo::brint}
 \usage{
 plot3(gene = "BCL2", tx = "none")
 }
@@ -12,8 +12,8 @@ plot3(gene = "BCL2", tx = "none")
 \item{tx}{character(1) if 'none', raw data are displayed, otherwise z-scores (over tumors) are used}
 }
 \value{
-a ggplot instance with a horizontal grid
+a ggplot instance with a horizontal grid, include info on pam50 class
 }
 \description{
-a simple interactive display for iTRAQ vs RPPA vs RNA-seq
+a simple ggplot2 display for iTRAQ vs RPPA vs RNA-seq in brcaProteo::brint
 }
