@@ -26,11 +26,11 @@ pgconsis = function() {
  )
 server = function(input, output) {
  output$pairs = renderPlot({
-   mt = sapply(experiments(brint[input$gene,]), assay)
+   mt = sapply(experiments(mae[input$gene,]), assay)
    pairs(mt)
    })
  output$maeprint = renderPrint({
-   brint
+   mae
    })
  output$sess = renderPrint({ sessionInfo() })
  }
