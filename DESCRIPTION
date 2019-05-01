@@ -1,7 +1,7 @@
 Package: brcaProteo
 Title: Demonstration of proteogenomic data archive for breast cancer
 Description: Demonstrate proteogenomic data archive for breast cancer.
-Version: 0.0.2
+Version: 0.0.3
 Author: Vince Carey
 Suggests: knitr
 Imports: shiny
